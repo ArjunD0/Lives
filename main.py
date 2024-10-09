@@ -2,6 +2,8 @@ import pygame, sys
 import os
 from random import randint
 
+
+
 class Tree(pygame.sprite.Sprite):
     def __init__(self,pos,group):
         super().__init__(group)
@@ -18,23 +20,19 @@ class Player(pygame.sprite.Sprite):
 
     def input(self):
         keys = pygame.key.get_pressed()
+        self.direction.x = 0
+        self.direction.y = 0
         
-        if keys_pressed[pygame.K_w]:
+        if keys[pygame.K_w]:
             self.direction.y = -1
-            
-        elif keys_pressed[pygame.K_s]:
+        elif keys[pygame.K_s]:
             self.direction.y = 1
 
-        else:
-            self.direction.y = 0
-                
-        if keys_pressed[pygame.K_d]:
-            self.direction.x = 1
-                
-        if keys_pressed[pygame.K_a]:
+        if keys[pygame.K_d]:
+            self.direction.x = 1                
+        elif keys[pygame.K_a]:
             self.direction.x = -1
-        else:
-            self.direction.x = 0
+
 
     def update(self):
         self.input()
@@ -59,12 +57,11 @@ while True:
             pygame.quit()
             sys.exit()
 
-    screen.fill('#71ddee')
+    screen.fill((113, 221, 238))
     
     camera_group.update()
     camera_group.draw(screen)
 
     pygame.display.update()
     clock.tick(60)
-
 
