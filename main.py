@@ -1,55 +1,70 @@
-import pygame #import pygame
+import pygame, sys
 import os
+from random import randint
 
+class Tree(pygame.sprite.Sprite):
+    def __init__(self,pos,group):
+        super().__init__(group)
+        self.image = pygame.image.load('Assets/rocket1.png').convert_alpha()
+        self.rect = self.image.get_rect(center = pos)
 
-WHITE = 255, 255, 255           #Constants for the window and fps
-WIDTH, HEIGHT = 900, 500
-FPS = 60
-VEL = 3                        # player velocity
+class Player(pygame.sprite.Sprite):
+    def __init__(self,pos,group):
+        super().__init__(group)
+        self.image = pygame.image.load('Assets/Knight_v1.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft = pos)
+        self.direction = pygame.math.Vector2()
+        self.speed = 5
 
-KNIGHT_WIDTH, KNIGHT_HEIGHT = 55, 55        #player dimensions 
-
-
-KNIGHT = pygame.image.load(os.path.join('Assets', 'Knight_v1.png'))            # Loading player sprite and transforming it
-KNIGHT = pygame.transform.scale(KNIGHT, (KNIGHT_WIDTH, KNIGHT_HEIGHT))
-
-
-WIN = pygame.display.set_mode((WIDTH,HEIGHT))
-pygame.display.set_caption('Lives v1')
-
-def draw_window(knight):            # drawing the window with tthe player
-    WIN.fill(WHITE)
-    WIN.blit(KNIGHT, (knight.x, knight.y))
-    pygame.display.update()
-
-def knight_movement(keys_pressed, knight):            # main player movement
-    if keys_pressed[pygame.K_a] and knight.x - VEL > 0:
-            knight.x -= VEL
-    if keys_pressed[pygame.K_d] and knight.x + VEL + knight.width < WIDTH:
-            knight.x += VEL
-    if keys_pressed[pygame.K_s] and knight.y + VEL + knight.height < HEIGHT:
-            knight.y += VEL
-    if keys_pressed[pygame.K_w] and knight.y + VEL > 0:
-            knight.y -= VEL
+    def input(self):
+        keys = pygame.key.get_pressed()
+        
+        if keys_pressed[pygame.K_w]:
+            self.direction.y = -1
             
-def main():            # main game loop
-    knight = pygame.Rect(450, 250, KNIGHT_WIDTH, KNIGHT_HEIGHT)
-    clock = pygame.time.Clock()
-    run = True
+        elif keys_pressed[pygame.K_s]:
+            self.direction.y = 1
 
-    while run:
-        clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-
-        keys_pressed = pygame.key.get_pressed()
-        knight_movement(keys_pressed, knight)
+        else:
+            self.direction.y = 0
                 
-        draw_window(knight)
+        if keys_pressed[pygame.K_d]:
+            self.direction.x = 1
                 
-    pygame.quit()
+        if keys_pressed[pygame.K_a]:
+            self.direction.x = -1
+        else:
+            self.direction.x = 0
 
-if __name__ == '__main__':
-    main()
+    def update(self):
+        self.input()
+        self.rect.center += self.direction * self.speed
+
+pygame.init()
+screen = pygame.display.set_mode((1280, 720))
+clock = pygame.time.Clock()
+
+#setup
+camera_group = pygame.sprite.Group()
+Player((640, 360),camera_group)
+
+for i in range(20):
+    random_x = randint(0,1000)
+    random_y = randint(0,1000)
+    Tree((random_x, random_y),camera_group)
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    screen.fill('#71ddee')
+    
+    camera_group.update()
+    camera_group.draw(screen)
+
+    pygame.display.update()
+    clock.tick(60)
+
 
