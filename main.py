@@ -2,7 +2,8 @@ import pygame, sys
 import os
 from random import randint
 
-
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
 
 class Tree(pygame.sprite.Sprite):
     def __init__(self,pos,group):
@@ -49,14 +50,18 @@ class CameraGroup(pygame.sprite.Group):
             
         self.ground_surf = pygame.image.load('Assets/grasstile.png').convert_alpha()
         self.ground_rect = self.ground_surf.get_rect(topleft = (0,0))
+        self.background_surf = pygame.image.load('Assets/grasstile.png').convert()
 
     def center_target_camera(self,target):
-        self.offset.x = target.centerx - self.half_w
+        self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
 
     def custom_draw(self,player):
 
         self.center_target_camera(player)
+        #background
+        background_offset = -self.offset    #offset for bg
+        self.display_surface.blit(self.background_surf, background_offset)
 
         #ground
         ground_offset = self.ground_rect.topleft - self.offset
@@ -65,10 +70,9 @@ class CameraGroup(pygame.sprite.Group):
         #active
         for sprites in sorted(self.sprites(),key = lambda sprites: sprites.rect.centery):
             offset_pos = sprites.rect.topleft - self.offset
-            self.display_surface.blit(sprites.image,sprites_pos)
+            self.display_surface.blit(sprites.image,offset_pos)
 
-pygame.init()
-screen = pygame.display.set_mode((720, 520))
+
 clock = pygame.time.Clock()
 
 #setup
