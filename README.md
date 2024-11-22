@@ -1,3 +1,2 @@
-# Lives
-Lives game for A level CS
-![lives title only](https://github.com/user-attachments/assets/3c8ecc68-bfe5-40f9-af6e-6fdb05418e8a)
+
+![lives title only](https://github.com/user-attachments/assets/9e9856b8-034e-4c89-aae3-8000d4cbc22f)
