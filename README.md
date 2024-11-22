@@ -1,3 +1,3 @@
 # Lives
 Lives game for A level CS
-![Sideways sword title](https://github.com/user-attachments/assets/fbb19118-c3b8-44fd-85c1-dd4235eb89d4)
+![lives title only](https://github.com/user-attachments/assets/3c8ecc68-bfe5-40f9-af6e-6fdb05418e8a)
