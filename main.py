@@ -5,7 +5,7 @@ from random import randint
 
 # Initialize pygame
 pygame.init()
-screen = pygame.display.set_mode((1000, 600))
+screen = pygame.display.set_mode((1000, 600)) # Screen size
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ screen = pygame.display.set_mode((1000, 600))
 class Tree(pygame.sprite.Sprite):
     def __init__(self, pos, group):
         super().__init__(group)
-        self.image = pygame.image.load('Assets/rocket1.png').convert_alpha()
+        self.image = pygame.image.load('Assets/tree1.png').convert_alpha() # tree image
         self.rect = self.image.get_rect(center=pos)
         
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class Player(pygame.sprite.Sprite):
         self.input()
         self.rect.center += self.direction * self.speed  # Player speed
 
-        # Boundary checks
+        # Boundary checks to stop the player from leaving the area
         if self.rect.left < self.bounds['min_x']:
             self.rect.left = self.bounds['min_x']
         if self.rect.right > self.bounds['max_x']:
@@ -70,7 +70,7 @@ class CameraGroup(pygame.sprite.Group):
         self.half_w = self.display_surface.get_size()[0] // 2
         self.half_h = self.display_surface.get_size()[1] // 2
             
-        # Load the ground tile
+        # Load the ground tile and set world
         self.tile_surf = pygame.image.load('Assets/grasstile.png').convert_alpha()
         self.tile_size = self.tile_surf.get_size()
         self.world_size = (3000, 3000)  # Size of the world (bigger than the screen)
@@ -87,6 +87,7 @@ class CameraGroup(pygame.sprite.Group):
         end_x = self.world_size[0] + self.tile_size[0]
         end_y = self.world_size[1] + self.tile_size[1]
 
+        # start tiling
         for x in range(start_x, end_x, self.tile_size[0]):
             for y in range(start_y, end_y, self.tile_size[1]):
             # Calculate position with offset
@@ -106,20 +107,20 @@ class CameraGroup(pygame.sprite.Group):
             
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Set up the clock and bounds
+# Set up the clock and bounds using a dictionary
 clock = pygame.time.Clock()
-bounds = {'min_x': 2.5, 'max_x': 2000, 'min_y': 2.5, 'max_y': 2000}
+bounds = {'min_x': 3.5, 'max_x': 3000, 'min_y': 3.5, 'max_y': 3000}
 
 # Setup
 camera_group = CameraGroup()
-player = Player((640, 360), camera_group, bounds)
+player = Player((640, 360), camera_group, bounds) # player size
 
 # Spawning trees using random function
-for i in range(30):
-    random_x = randint(0, 1990)
-    random_y = randint(0, 1990)
+for i in range(100):
+    random_x = randint(0, 4000) 
+    random_y = randint(0, 4000)
     Tree((random_x, random_y), camera_group)
-
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Main game loop
 while True:
     for event in pygame.event.get():
@@ -133,4 +134,5 @@ while True:
     camera_group.custom_draw(player)  # Draw the camera group
 
     pygame.display.update()
-    clock.tick(60)
+    clock.tick(60) # fps
+
