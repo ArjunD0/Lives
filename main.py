@@ -48,14 +48,14 @@ class Player(pygame.sprite.Sprite):
         self.rect.center += self.direction * self.speed  # Player speed
 
         # Boundary checks to stop the player from leaving the area
-        if self.rect.left < self.bounds['min_x']:
-            self.rect.left = self.bounds['min_x']
-        if self.rect.right > self.bounds['max_x']:
-            self.rect.right = self.bounds['max_x']
-        if self.rect.top < self.bounds['min_y']:
-            self.rect.top = self.bounds['min_y']
-        if self.rect.bottom > self.bounds['max_y']:
-            self.rect.bottom = self.bounds['max_y']
+        if self.rect.left < self.bounds['m_x']:
+            self.rect.left = self.bounds['m_x']
+        if self.rect.right > self.bounds['m_x']:
+            self.rect.right = self.bounds['m_x']
+        if self.rect.top < self.bounds['m_y']:
+            self.rect.top = self.bounds['m_y']
+        if self.rect.bottom > self.bounds['m_y']:
+            self.rect.bottom = self.bounds['m_y']
             
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ class CameraGroup(pygame.sprite.Group):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
 
-    def draw_tiled_background(self):
+    def draw_t_bg(self):
     # Calculate the start and end points for tiling
         start_x = -self.tile_size[0] + int(self.offset.x // self.tile_size[0]) * self.tile_size[0]
         start_y = -self.tile_size[1] + int(self.offset.y // self.tile_size[1]) * self.tile_size[1]
@@ -98,7 +98,7 @@ class CameraGroup(pygame.sprite.Group):
         self.center_target_camera(player)
 
         # Draw the tiled background
-        self.draw_tiled_background()
+        self.draw_t_bg()
 
         # Active sprites
         for sprite in sorted(self.sprites(), key=lambda sprite: sprite.rect.centery):
@@ -109,7 +109,7 @@ class CameraGroup(pygame.sprite.Group):
 
 # Set up the clock and bounds using a dictionary
 clock = pygame.time.Clock()
-bounds = {'min_x': 3.5, 'max_x': 3000, 'min_y': 3.5, 'max_y': 3000}
+bounds = {'m_x': 3.5, 'm_x': 3000, 'm_y': 3.5, 'm_y': 3000}
 
 # Setup
 camera_group = CameraGroup()
@@ -121,7 +121,6 @@ for i in range(100):
     random_y = randint(0, 4000)
     Tree((random_x, random_y), camera_group)
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 # Main game loop
 while True:
     for event in pygame.event.get():
@@ -136,5 +135,4 @@ while True:
 
     pygame.display.update()
     clock.tick(60) # fps
-
 
