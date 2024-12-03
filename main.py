@@ -48,15 +48,29 @@ class Player(pygame.sprite.Sprite):
         self.rect.center += self.direction * self.speed  # Player speed
 
         # Boundary checks to stop the player from leaving the area
-        if self.rect.left < self.bounds['m_x']:
-            self.rect.left = self.bounds['m_x']
-        if self.rect.right > self.bounds['m_x']:
-            self.rect.right = self.bounds['m_x']
-        if self.rect.top < self.bounds['m_y']:
-            self.rect.top = self.bounds['m_y']
-        if self.rect.bottom > self.bounds['m_y']:
-            self.rect.bottom = self.bounds['m_y']
-            
+        if self.rect.left < self.bounds['min_x']:
+            self.rect.left = self.bounds['min_x']
+        if self.rect.right > self.bounds['max_x']:
+            self.rect.right = self.bounds['max_x']
+        if self.rect.top < self.bounds['min_y']:
+            self.rect.top = self.bounds['min_y']
+        if self.rect.bottom > self.bounds['max_y']:
+            self.rect.bottom = self.bounds['max_y']
+
+
+# ------------------------------------------------------------------------------------------------------------
+class Enemy():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def draw(self, screen, camera_offset):  # Add camera_offset as a second argument
+        enemy_image = pygame.image.load('Assets/enemy_1.png')  # Load the image into a Surface
+        # Adjust the position by the camera's offset
+        screen.blit(enemy_image, (self.x - camera_offset.x, self.y - camera_offset.y))
+
+    def move(self): 
+        self.x -= 3
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Class for the camera which follows the player and creates the tiled background
@@ -79,7 +93,7 @@ class CameraGroup(pygame.sprite.Group):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
 
-    def draw_t_bg(self):
+    def draw_tiled_background(self):
     # Calculate the start and end points for tiling
         start_x = -self.tile_size[0] + int(self.offset.x // self.tile_size[0]) * self.tile_size[0]
         start_y = -self.tile_size[1] + int(self.offset.y // self.tile_size[1]) * self.tile_size[1]
@@ -98,8 +112,11 @@ class CameraGroup(pygame.sprite.Group):
         self.center_target_camera(player)
 
         # Draw the tiled background
-        self.draw_t_bg()
+        self.draw_tiled_background()
 
+        for enemy in enemies:
+            enemy.draw(self.display_surface, self.offset)
+            
         # Active sprites
         for sprite in sorted(self.sprites(), key=lambda sprite: sprite.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
@@ -109,11 +126,14 @@ class CameraGroup(pygame.sprite.Group):
 
 # Set up the clock and bounds using a dictionary
 clock = pygame.time.Clock()
-bounds = {'m_x': 3.5, 'm_x': 3000, 'm_y': 3.5, 'm_y': 3000}
+bounds = {'min_x': 3.5, 'max_x': 3000, 'min_y': 3.5, 'max_y': 3000}
 
 # Setup
 camera_group = CameraGroup()
 player = Player((640, 360), camera_group, bounds) # player size
+
+# instance for enemy
+enemies = []
 
 # Spawning trees using random function
 for i in range(100):
@@ -129,7 +149,16 @@ while True:
             sys.exit()
 
     screen.fill((85, 85, 85))  # Floor behind background color
-    
+
+    if len(enemies) == 0:  # Spawn enemies only if there are no enemies
+        for i in range(50):  # You can spawn 
+            random_x = randint(0, 3000)  # Random x position 
+            random_y = randint(0, 3000)  # Random y position 
+            new_enemy = Enemy(random_x, random_y)  
+            enemies.append(new_enemy)
+        for enemy in enemies:
+            enemy.move()
+        
     player.update()  # Update the player's position
     camera_group.custom_draw(player)  # Draw the camera group
 
