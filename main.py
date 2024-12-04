@@ -73,12 +73,13 @@ class Enemy():
 
     def move_towards_player(self, player):
         # Find direction vector (dx, dy) between enemy and player.
-        dirvect = pygame.math.Vector2(player.rect.x - self.rect.x,
-                                      player.rect.y - self.rect.y)
-        dirvect.normalize()
-        # Move along this normalized vector towards the player at current speed.
-        dirvect.scale_to_length(self.speed)
-        self.rect.move_ip(dirvect)
+        dirvect = pygame.math.Vector2(player.rect.center) - pygame.math.Vector2(self.rect.center)
+
+        if dirvect.length() !=0:    
+            dirvect.normalize_ip()
+            dirvect *= self.speed
+            self.rect.move_ip(dirvect)
+            self.x, self.y = self.rect.x, self.rect.y
         
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -165,11 +166,13 @@ while True:
             random_y = randint(0, 3000)  # Random y position 
             new_enemy = Enemy(random_x, random_y)  
             enemies.append(new_enemy)
+
         for enemy in enemies:
-            enemy.move_towards_player(Player)
+            enemy.move_towards_player(player)
         
     player.update()  # Update the player's position
     camera_group.custom_draw(player)  # Draw the camera group
 
     pygame.display.update()
     clock.tick(60) # fps
+
