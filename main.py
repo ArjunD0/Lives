@@ -63,14 +63,23 @@ class Enemy():
     def __init__(self, x, y):
         self.x = x
         self.y = y
-
+        self.rect = pygame.Rect(x, y, 64, 64)
+        self.speed = 3
+        
     def draw(self, screen, camera_offset):  # Add camera_offset as a second argument
         enemy_image = pygame.image.load('Assets/enemy_1.png')  # Load the image into a Surface
         # Adjust the position by the camera's offset
         screen.blit(enemy_image, (self.x - camera_offset.x, self.y - camera_offset.y))
 
-    def move(self): 
-        self.x -= 3
+    def move_towards_player(self, player):
+        # Find direction vector (dx, dy) between enemy and player.
+        dirvect = pygame.math.Vector2(player.rect.x - self.rect.x,
+                                      player.rect.y - self.rect.y)
+        dirvect.normalize()
+        # Move along this normalized vector towards the player at current speed.
+        dirvect.scale_to_length(self.speed)
+        self.rect.move_ip(dirvect)
+        
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Class for the camera which follows the player and creates the tiled background
@@ -151,17 +160,16 @@ while True:
     screen.fill((85, 85, 85))  # Floor behind background color
 
     if len(enemies) == 0:  # Spawn enemies only if there are no enemies
-        for i in range(50):  # You can spawn 
+        for i in range(10):  # You can spawn 
             random_x = randint(0, 3000)  # Random x position 
             random_y = randint(0, 3000)  # Random y position 
             new_enemy = Enemy(random_x, random_y)  
             enemies.append(new_enemy)
         for enemy in enemies:
-            enemy.move()
+            enemy.move_towards_player(Player)
         
     player.update()  # Update the player's position
     camera_group.custom_draw(player)  # Draw the camera group
 
     pygame.display.update()
     clock.tick(60) # fps
-
