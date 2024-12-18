@@ -1,4 +1,3 @@
-# Importing pygame and os
 import pygame, sys
 from random import randint
 
@@ -24,11 +23,25 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.image.load('Assets/Knight_v1.png').convert_alpha()  # Load player image
         self.rect = self.image.get_rect(topleft=pos)  
         self.direction = pygame.math.Vector2()
-        self.speed = 3  # Set speed
+        self.speed = 3.5  # Set speed
         self.bounds = bounds  # Save boundary values
+        self.health = 3
+        self.max_health = 3
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health < 0:
+            self.health = 0
+
+    def heal(self, amount):
+        self.health += amount
+        if self.health > self.max_health:
+            self.health = self.max_health
+
+
 
     # Define player movement 
-    def input(self): 
+    def input(self):
         keys = pygame.key.get_pressed()
         self.direction.x = 0
         self.direction.y = 0
@@ -62,7 +75,7 @@ class Player(pygame.sprite.Sprite):
 class Enemy:
     def __init__(self, x, y):
         self.position = pygame.math.Vector2(x, y)  # Floating-point position
-        self.rect = pygame.Rect(x, y, 64, 64)     # Rectangle for collisions/rendering
+        self.rect = pygame.Rect(x, y, 128, 128)     # Rectangle for collisions/rendering
         self.speed = 1.5                         # Set initial speed
 
     def draw(self, screen, camera_offset):
@@ -130,6 +143,18 @@ class CameraGroup(pygame.sprite.Group):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
 
+        def draw_health_icons(screen, x, y, health, max_health, icon_full, icon_half, spacing = 40):
+            self.icon_full = pygame.image.load('Assets/full_heart.png').convert_alpha()
+            self.icon_half = pygame.image.load('Assets/half_heart.png').convert_alpha()
+
+            for i in range(int(max_health)):
+                if i < int(health):
+                    screen.blit(icon_full, (x+i*spacing,y))
+                elif i < health:
+                    screen.blit(icon_full, (x+i*spacing,y))
+                    
+
+
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Set up the clock and bounds
@@ -150,9 +175,9 @@ for i in range(100):
     Tree((random_x, random_y), camera_group)
 
 spawn = pygame.time.get_ticks()
-spawns = 60000
+spawns = 30000 # timer for spawning enemies
 
-for i in range(10):
+for i in range(10): # how many spawn
     random_x = randint(0, 3000)
     random_y = randint(0, 3000)
     new_enemy = Enemy(random_x, random_y)
