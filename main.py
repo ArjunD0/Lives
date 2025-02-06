@@ -1,4 +1,6 @@
 import pygame, sys
+import random
+import math
 from random import randint
 
 # Initialize pygame
@@ -27,12 +29,14 @@ class Player(pygame.sprite.Sprite):
         self.bounds = bounds  # Save boundary values
         self.health = 3
         self.max_health = 3
+        
 
+        
     def take_damage(self, amount):
         self.health -= amount
         if self.health < 0:
             self.health = 0
-
+    
     def heal(self, amount):
         self.health += amount
         if self.health > self.max_health:
@@ -72,15 +76,15 @@ class Player(pygame.sprite.Sprite):
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Enemy class to define movement and rendering
-class Enemy:
-    def __init__(self, x, y):
-        self.position = pygame.math.Vector2(x, y)  # Floating-point position
-        self.rect = pygame.Rect(x, y, 128, 128)     # Rectangle for collisions/rendering
-        self.speed = 1.5                         # Set initial speed
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, group):
+        super().__init__(group)
+        self.image = pygame.image.load('Assets/enemy_1.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft=(x,y))
+        self.position = pygame.math.Vector2(x, y)
+        self.speed = randint(1,2)                         # Set initial speed
 
-    def draw(self, screen, camera_offset):
-        enemy_image = pygame.image.load('Assets/enemy_1.png')
-        screen.blit(enemy_image, (self.rect.x - camera_offset.x, self.rect.y - camera_offset.y))
+        
 
     def move_towards_player(self, player):
         # Calculate direction to the player
@@ -135,23 +139,28 @@ class CameraGroup(pygame.sprite.Group):
         # Draw the tiled background
         self.draw_tiled_background()
 
-        for enemy in enemies:
-            enemy.draw(self.display_surface, self.offset)
+        for enemy in enemy_group:
+            offset_pos = enemy.rect.topleft - self.offset
+            self.display_surface.blit(enemy.image, offset_pos)
             
         # Draw sprites
         for sprite in sorted(self.sprites(), key=lambda sprite: sprite.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
 
-        def draw_health_icons(screen, x, y, health, max_health, icon_full, icon_half, spacing = 40):
-            self.icon_full = pygame.image.load('Assets/full_heart.png').convert_alpha()
-            self.icon_half = pygame.image.load('Assets/half_heart.png').convert_alpha()
+        def draw_health_icons(self, screen, player):
+            icon_full = pygame.image.load('Assets/full_heart.png').convert_alpha()
+            icon_half = pygame.image.load('Assets/half_heart.png').convert_alpha()
+            x, y = 20, 20
+            spacing = 50
 
-            for i in range(int(max_health)):
-                if i < int(health):
+            for i in range(player.max_health):
+                if i < int(player.health):
                     screen.blit(icon_full, (x+i*spacing,y))
-                elif i < health:
-                    screen.blit(icon_full, (x+i*spacing,y))
+                elif i < player.health:
+                    screen.blit(icon_half, (x+i*spacing,y))
+
+        self.draw_health_icons(self.display_surface, player)
                     
 
 
@@ -165,6 +174,7 @@ bounds = {'min_x': 3.5, 'max_x': 3000, 'min_y': 3.5, 'max_y': 3000}
 camera_group = CameraGroup()
 player = Player((640, 360), camera_group, bounds)
 
+enemy_group = pygame.sprite.Group()
 # List of enemies
 enemies = []
 
@@ -179,10 +189,12 @@ spawns = 30000 # timer for spawning enemies
 
 for i in range(10): # how many spawn
     if len(enemies) != 40: # limit to stop inf number of enemies spawning
-        random_x = randint(0, 3000)
-        random_y = randint(0, 3000)
-        new_enemy = Enemy(random_x, random_y)
-        enemies.append(new_enemy)
+        random_x = randint(1000, 3000)
+        random_y = randint(1000, 3000)
+        new_enemy = Enemy(random_x, random_y, enemy_group)
+
+last_hit_c = 0
+hit_check = 3000 # time intervel to check if the player is bieng hit increse for more DPS
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -191,30 +203,35 @@ for i in range(10): # how many spawn
 while True:
     delta_time = clock.tick(60) / 1000.0  # Time in seconds since last frame
 
-
-    if pygame.sprite.spritecollide(player, Enemy, False):
-            print('collide')
-    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+    current_time = pygame.time.get_ticks()
+    if current_time - last_hit_c > hit_check:
+        if pygame.sprite.spritecollide(player, enemy_group, False):
+            r_dmg = random.uniform(0.15,1)
+            e_dmg = round(r_dmg,1)
+            player.take_damage(e_dmg)
+            print(round(player.health,2))
 
-    screen.fill((85, 85, 85))  # Background color
+        last_hit_c = current_time
 
     current = pygame.time.get_ticks()
     if current - spawn > spawns:
         spawn = current
         # Spawn enemies if none exist
         for i in range(10):
-            random_x = randint(0, 3000)
-            random_y = randint(0, 3000)
-            new_enemy = Enemy(random_x, random_y)
-            enemies.append(new_enemy)
+            random_x = randint(1000, 3000)
+            random_y = randint(1000, 3000)
+            new_enemy = Enemy(random_x, random_y, enemy_group)
+            
 
     # Update and move enemies
-    for enemy in enemies:
+    for enemy in enemy_group:
         enemy.move_towards_player(player)
+        if player.rect.colliderect(enemy.rect):
+            player.take_damage(0.5)
     
     # Update player and draw everything
     player.update()
