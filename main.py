@@ -29,11 +29,16 @@ class Player(pygame.sprite.Sprite):
         self.bounds = bounds  # Save boundary values
         self.health = 3
         self.max_health = 3
-        
+        self.xp = 0  # xp
+        self.max_xp = 10000
+        self.xp_gain_rate = 2.5
+
+    def gain_xp(self, amount):
+        self.xp = min(self.xp + amount, self.max_xp)
 
         
     def take_damage(self, amount):
-        self.health -= amount
+        self.health -= 0.5
         if self.health < 0:
             self.health = 0
     
@@ -60,6 +65,9 @@ class Player(pygame.sprite.Sprite):
             self.direction.x = -1
 
     def update(self):
+        
+        self.gain_xp(self.xp_gain_rate)
+
         self.input()
         self.rect.center += self.direction * self.speed  # Apply speed to movement
 
@@ -82,20 +90,42 @@ class Enemy(pygame.sprite.Sprite):
         self.image = pygame.image.load('Assets/enemy_1.png').convert_alpha()
         self.rect = self.image.get_rect(topleft=(x,y))
         self.position = pygame.math.Vector2(x, y)
-        self.speed = randint(1,2)                         # Set initial speed
-
+        self.speed = random.uniform(0.5, 1.5)                         # Set initial speed
+        self.max_health = 100
+        self.health = self.max_health
+        self.health_fill_width = 200
+        self.last_damage_time = 0
         
 
-    def move_towards_player(self, player):
-        # Calculate direction to the player
+    def move_towards_player(self, player, enemies):
         dirvect = pygame.math.Vector2(player.rect.center) - self.position
         distance = dirvect.length()
 
-        if distance > 0:  # Move only if not already at the player's position
-            dirvect = dirvect / distance  # Normalize direction vector
-            self.position += dirvect * self.speed  # Update position
+        if distance > 1:  
+            dirvect = dirvect.normalize() * self.speed  #Normalize direction 
 
-        self.rect.topleft = self.position  # Sync rect with position
+            # Apply a repulsion 
+            for enemy in enemies:
+                if enemy != self:  # Don't push itself
+                    separation = self.position - enemy.position
+                    if 0 < separation.length() < 30:  
+                        dirvect += separation.normalize() * 0.5  # Push apart
+
+            self.position += dirvect  # Update 
+
+        self.rect.topleft = self.position
+
+    def damage_enemy(enemy, damage_amount, current_time, player, camera_group):
+        # Check if 1 second has passed since last damage
+        if current_time - enemy.last_damage_time >= 1000:  # 1000 ms = 1 second
+            enemy.health -= damage_amount
+            if enemy.health <= 0:
+                enemy.health = 0 # Prevent health from going below 0
+                enemy.kill()
+                player.gain_xp(50)
+                camera_group.xp_fill_width =  min(camera_group.xp_fill_width + 30, 200)
+                
+            enemy.last_damage_time = current_time  # Update the last damage time
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -115,6 +145,9 @@ class CameraGroup(pygame.sprite.Group):
         self.tile_size = self.tile_surf.get_size()
         self.world_size = (3000, 3000)  # Size of the world (bigger than the screen)
 
+        self.xp_fill_width = 0
+        self.health_fill_width = 200
+
     def center_target_camera(self, target):
         self.offset.x = target.rect.centerx - self.half_w
         self.offset.y = target.rect.centery - self.half_h
@@ -133,7 +166,79 @@ class CameraGroup(pygame.sprite.Group):
                 tile_pos = pygame.math.Vector2(x, y) - self.offset
                 self.display_surface.blit(self.tile_surf, tile_pos)
 
-    def custom_draw(self, player):
+
+    def draw_health_bar(self, screen, player):
+        full_heart = pygame.image.load('Assets/Real_Heart.png').convert_alpha()
+        half_heart = pygame.image.load('Assets/Real_Half_Heart.png').convert_alpha()
+        empty_heart = pygame.image.load('Assets/Real_Empty_Heart.png').convert_alpha()
+
+        heart_w, heart_h = full_heart.get_size()
+        x, y = 20, 20  # Position of health bar
+
+        for i in range(player.max_health):
+            heart_pos = (x + i * heart_w, y)
+            
+            # Determine which heart to draw
+            if player.health >= i + 1:  # Full heart
+                screen.blit(full_heart, heart_pos)
+            elif player.health >= i + 0.5:  # Half heart
+                screen.blit(half_heart, heart_pos)
+            else:  # Empty heart
+                screen.blit(empty_heart, heart_pos)
+
+    def draw_health_bar_enemy(self, screen, enemy):
+        # Offset enemy position with the camera
+        offset_x = self.offset.x
+        offset_y = self.offset.y
+
+        # Calculate health bar position 
+        bar_x = enemy.rect.x + 30 - offset_x
+        bar_y = enemy.rect.y + 3 - offset_y  
+
+        # Health bar dimensions
+        bar_width = 50 
+        bar_height = 5
+
+        # Calculate health proportion
+        health_percentage = enemy.health / enemy.max_health
+        health_fill_width = bar_width * health_percentage  # Scale width
+
+        # Draw the empty background
+        pygame.draw.rect(screen, (169, 169, 169), (bar_x, bar_y, bar_width, bar_height))
+
+        # Draw the health fill
+        pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, health_fill_width, bar_height))
+
+
+        
+
+
+    def draw_xp_bar(self, screen, player):
+        x, y = 20, 60  # Position of XP bar
+        bar_width = 200  # Width of the XP bar
+        bar_height = 15  # Height of the XP bar
+        count_z = 5
+
+        # Draw the empty XP bar
+        pygame.draw.rect(screen, (169, 169, 169), (x, y, bar_width, bar_height))
+
+        # Calculate target XP width based on the player's XP
+        xp_target_width = (player.xp / player.max_xp) * bar_width
+
+        
+        if self.xp_fill_width < xp_target_width:
+            # Increase the xp fill width 
+            increment = 1 
+            self.xp_fill_width += increment
+
+            # Ensure the xp fill width doesn't exceed the target width
+            if self.xp_fill_width > xp_target_width:
+                self.xp_fill_width = xp_target_width
+
+        pygame.draw.rect(screen, (255, 255, 0), (x, y, self.xp_fill_width, bar_height))
+        
+    
+    def custom_draw(self, player, enemy):
         self.center_target_camera(player)
 
         # Draw the tiled background
@@ -142,27 +247,16 @@ class CameraGroup(pygame.sprite.Group):
         for enemy in enemy_group:
             offset_pos = enemy.rect.topleft - self.offset
             self.display_surface.blit(enemy.image, offset_pos)
+
+            self.draw_health_bar_enemy(self.display_surface, enemy)
             
         # Draw sprites
         for sprite in sorted(self.sprites(), key=lambda sprite: sprite.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
 
-        def draw_health_icons(self, screen, player):
-            icon_full = pygame.image.load('Assets/full_heart.png').convert_alpha()
-            icon_half = pygame.image.load('Assets/half_heart.png').convert_alpha()
-            x, y = 20, 20
-            spacing = 50
-
-            for i in range(player.max_health):
-                if i < int(player.health):
-                    screen.blit(icon_full, (x+i*spacing,y))
-                elif i < player.health:
-                    screen.blit(icon_half, (x+i*spacing,y))
-
-        self.draw_health_icons(self.display_surface, player)
-                    
-
+        self.draw_health_bar(self.display_surface, player)
+        self.draw_xp_bar(self.display_surface, player)
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -189,15 +283,14 @@ spawns = 30000 # timer for spawning enemies
 
 for i in range(10): # how many spawn
     if len(enemies) != 40: # limit to stop inf number of enemies spawning
-        random_x = randint(1000, 3000)
-        random_y = randint(1000, 3000)
+        random_x = randint(0, 3000)
+        random_y = randint(0, 3000)
         new_enemy = Enemy(random_x, random_y, enemy_group)
+        enemy_group.add(new_enemy)
 
 last_hit_c = 0
 hit_check = 3000 # time intervel to check if the player is bieng hit increse for more DPS
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 # Main game loop
 while True:
@@ -215,7 +308,7 @@ while True:
             player.take_damage(e_dmg)
             print(round(player.health,2))
 
-        last_hit_c = current_time
+            last_hit_c = current_time
 
     current = pygame.time.get_ticks()
     if current - spawn > spawns:
@@ -225,16 +318,25 @@ while True:
             random_x = randint(1000, 3000)
             random_y = randint(1000, 3000)
             new_enemy = Enemy(random_x, random_y, enemy_group)
-            
+    
+    keys = pygame.key.get_pressed()
+    if pygame.sprite.spritecollide(player, enemy_group, False) and keys[pygame.K_p]:
+        for enemy in pygame.sprite.spritecollide(player, enemy_group, False):
+            enemy.damage_enemy(10, current_time, player, camera_group)
 
+    #if pygame.sprite.spritecollide(player, enemy_group, False):
+        #player.xp_gain_rate = 20
+    #else:
+        #player.xp_gain_rate = 5
+
+    
     # Update and move enemies
     for enemy in enemy_group:
-        enemy.move_towards_player(player)
-        if player.rect.colliderect(enemy.rect):
-            player.take_damage(0.5)
+        enemy.move_towards_player(player, enemy_group)
+
     
     # Update player and draw everything
     player.update()
-    camera_group.custom_draw(player)
+    camera_group.custom_draw(player, enemy)
     pygame.display.update()
     clock.tick(60)
