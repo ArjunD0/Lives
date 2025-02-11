@@ -5,7 +5,7 @@ from random import randint
 
 # Initialize pygame
 pygame.init()
-screen = pygame.display.set_mode((1000, 600))  # Screen size
+screen = pygame.display.set_mode((600, 600))  # Screen size
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -32,15 +32,20 @@ class Player(pygame.sprite.Sprite):
         self.xp = 0  # xp
         self.max_xp = 10000
         self.xp_gain_rate = 2.5
-
+        self.player_images = []
+        self.player_images.append(pygame.image.load('Assets/Knight_v1.png').convert_alpha())
+        self.last_damage_time = 0
+        
     def gain_xp(self, amount):
         self.xp = min(self.xp + amount, self.max_xp)
 
         
     def take_damage(self, amount):
-        self.health -= 0.5
-        if self.health < 0:
-            self.health = 0
+        if current_time - player.last_damage_time >= 4000:  # 4 secs before attack again
+            player.health -= 0.5    
+            player.last_damage_time = current_time
+            if self.health < 0:
+                self.health = 0 # Update the last damage time
     
     def heal(self, amount):
         self.health += amount
@@ -56,12 +61,20 @@ class Player(pygame.sprite.Sprite):
         self.direction.y = 0
         
         if keys[pygame.K_w]:
+            self.image = pygame.image.load('Assets/KB1.png').convert_alpha()
+            self.player_images.append(pygame.image.load('Assets/KB1.png').convert_alpha())
             self.direction.y = -1
         if keys[pygame.K_s]:
+            self.image = pygame.image.load('Assets/Knight_v1.png').convert_alpha()
+            self.player_images.append(pygame.image.load('Assets/Knight_v1.png').convert_alpha())
             self.direction.y = 1
         if keys[pygame.K_d]:
+            self.image = pygame.image.load('Assets/KR1.png').convert_alpha()
+            self.player_images.append(pygame.image.load('Assets/KR1.png').convert_alpha())
             self.direction.x = 1                
         if keys[pygame.K_a]:
+            self.image = pygame.image.load('Assets/KL1.png').convert_alpha()
+            self.player_images.append(pygame.image.load('Assets/KL1.png').convert_alpha())
             self.direction.x = -1
 
     def update(self):
@@ -91,7 +104,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=(x,y))
         self.position = pygame.math.Vector2(x, y)
         self.speed = random.uniform(0.5, 1.5)                         # Set initial speed
-        self.max_health = 100
+        self.max_health = randint(10, 40)
         self.health = self.max_health
         self.health_fill_width = 200
         self.last_damage_time = 0
@@ -117,13 +130,14 @@ class Enemy(pygame.sprite.Sprite):
 
     def damage_enemy(enemy, damage_amount, current_time, player, camera_group):
         # Check if 1 second has passed since last damage
-        if current_time - enemy.last_damage_time >= 1000:  # 1000 ms = 1 second
+        if current_time - enemy.last_damage_time >= 1000:  # 1 s
             enemy.health -= damage_amount
             if enemy.health <= 0:
                 enemy.health = 0 # Prevent health from going below 0
                 enemy.kill()
-                player.gain_xp(50)
+                player.gain_xp(randint(50, 150))
                 camera_group.xp_fill_width =  min(camera_group.xp_fill_width + 30, 200)
+                player.heal(0.5)
                 
             enemy.last_damage_time = current_time  # Update the last damage time
 
@@ -191,17 +205,17 @@ class CameraGroup(pygame.sprite.Group):
         offset_x = self.offset.x
         offset_y = self.offset.y
 
-        # Calculate health bar position 
-        bar_x = enemy.rect.x + 30 - offset_x
-        bar_y = enemy.rect.y + 3 - offset_y  
-
         # Health bar dimensions
-        bar_width = 50 
-        bar_height = 5
+        bar_width = enemy.max_health 
+        bar_height = 5  
 
         # Calculate health proportion
         health_percentage = enemy.health / enemy.max_health
         health_fill_width = bar_width * health_percentage  # Scale width
+
+        # Calculate health bar position 
+        bar_x = enemy.rect.x + 40 - offset_x 
+        bar_y = enemy.rect.y + 3 - offset_y
 
         # Draw the empty background
         pygame.draw.rect(screen, (169, 169, 169), (bar_x, bar_y, bar_width, bar_height))
@@ -228,8 +242,8 @@ class CameraGroup(pygame.sprite.Group):
         
         if self.xp_fill_width < xp_target_width:
             # Increase the xp fill width 
-            increment = 1 
-            self.xp_fill_width += increment
+            #increment = 1 
+            #self.xp_fill_width += increment
 
             # Ensure the xp fill width doesn't exceed the target width
             if self.xp_fill_width > xp_target_width:
@@ -321,8 +335,12 @@ while True:
     
     keys = pygame.key.get_pressed()
     if pygame.sprite.spritecollide(player, enemy_group, False) and keys[pygame.K_p]:
+        player.image = pygame.image.load('Assets/KnightS1.png').convert_alpha()
+        player.player_images.append(pygame.image.load('Assets/KnightS1.png').convert_alpha())
         for enemy in pygame.sprite.spritecollide(player, enemy_group, False):
             enemy.damage_enemy(10, current_time, player, camera_group)
+    else:
+        player.image = player.player_images[len(player.player_images) - 2]
 
     #if pygame.sprite.spritecollide(player, enemy_group, False):
         #player.xp_gain_rate = 20
