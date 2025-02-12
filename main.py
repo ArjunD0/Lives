@@ -5,7 +5,7 @@ from random import randint
 
 # Initialize pygame
 pygame.init()
-screen = pygame.display.set_mode((600, 600))  # Screen size
+screen = pygame.display.set_mode((1000, 600))  # Screen size
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ class Player(pygame.sprite.Sprite):
 
         
     def take_damage(self, amount):
-        if current_time - player.last_damage_time >= 4000:  # 4 secs before attack again
+        if current_time - player.last_damage_time >= 3500:  # 3.5 secs before attack again
             player.health -= 0.5    
             player.last_damage_time = current_time
             if self.health < 0:
@@ -320,7 +320,7 @@ while True:
             r_dmg = random.uniform(0.15,1)
             e_dmg = round(r_dmg,1)
             player.take_damage(e_dmg)
-            print(round(player.health,2))
+            
 
             last_hit_c = current_time
 
@@ -339,6 +339,9 @@ while True:
         player.player_images.append(pygame.image.load('Assets/KnightS1.png').convert_alpha())
         for enemy in pygame.sprite.spritecollide(player, enemy_group, False):
             enemy.damage_enemy(10, current_time, player, camera_group)
+            print('Enemy health:',enemy.health)
+            print('Player health:',player.health)
+            print('Player xp :',player.xp)
     else:
         player.image = player.player_images[len(player.player_images) - 2]
 
@@ -351,7 +354,9 @@ while True:
     # Update and move enemies
     for enemy in enemy_group:
         enemy.move_towards_player(player, enemy_group)
+        print(enemy.health)
 
+    
     
     # Update player and draw everything
     player.update()
