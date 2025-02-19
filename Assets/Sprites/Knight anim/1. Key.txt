@@ -1,0 +1,6 @@
+K*.x = x = frame of animation * = position for knight
+
+KS = knight front walk facing user
+KB = knight back walk away from user
+KLS = Knight facing left walking 
+KRS = Knight facing right walking
