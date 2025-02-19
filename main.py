@@ -2,12 +2,15 @@ import pygame, sys
 import random
 import math
 from random import randint
+import threading
+import tkinter as tk
+from tkinter import Tk, Button, PhotoImage
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Initialize pygame
 pygame.init()
 screen = pygame.display.set_mode((1000, 600))  # Screen size
-
-# --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Tree class for loading the tree image and scaling it 
 class Tree(pygame.sprite.Sprite):
@@ -30,20 +33,26 @@ class Player(pygame.sprite.Sprite):
         self.health = 3
         self.max_health = 3
         self.xp = 0  # xp
-        self.max_xp = 10000
-        self.xp_gain_rate = 2.5
+        self.max_xp = 100
+        self.xp_gain_rate = 1
         self.player_images = []
         self.player_images.append(pygame.image.load('Assets/Knight_v1.png').convert_alpha())
         self.last_damage_time = 0
+        self.damage = 20
+        self.shield = 0
         
     def gain_xp(self, amount):
         self.xp = min(self.xp + amount, self.max_xp)
 
         
     def take_damage(self, amount):
-        if current_time - player.last_damage_time >= 3500:  # 3.5 secs before attack again
-            player.health -= 0.5    
-            player.last_damage_time = current_time
+        if current_time - player.last_damage_time >= 3000:  # 3.5 secs before attack again
+            if player.shield != 0:
+                player.shield -= 0.5    
+                player.last_damage_time = current_time
+            else:
+                player.health -= 0.5    
+                player.last_damage_time = current_time
             if self.health < 0:
                 self.health = 0 # Update the last damage time
     
@@ -103,13 +112,14 @@ class Enemy(pygame.sprite.Sprite):
         self.image = pygame.image.load('Assets/enemy_1.png').convert_alpha()
         self.rect = self.image.get_rect(topleft=(x,y))
         self.position = pygame.math.Vector2(x, y)
-        self.speed = random.uniform(0.5, 1.5)                         # Set initial speed
-        self.max_health = randint(10, 40)
+        self.speed = random.uniform(0.5, 2.5)                         # Set initial speed
+        self.max_health = randint(10, 50)
         self.health = self.max_health
         self.health_fill_width = 200
         self.last_damage_time = 0
+        self.damage_amount = 0
+    
         
-
     def move_towards_player(self, player, enemies):
         dirvect = pygame.math.Vector2(player.rect.center) - self.position
         distance = dirvect.length()
@@ -131,17 +141,18 @@ class Enemy(pygame.sprite.Sprite):
     def damage_enemy(enemy, damage_amount, current_time, player, camera_group):
         # Check if 1 second has passed since last damage
         if current_time - enemy.last_damage_time >= 1000:  # 1 s
-            enemy.health -= damage_amount
+            enemy.health -= player.damage
             if enemy.health <= 0:
                 enemy.health = 0 # Prevent health from going below 0
                 enemy.kill()
                 player.gain_xp(randint(50, 150))
-                camera_group.xp_fill_width =  min(camera_group.xp_fill_width + 30, 200)
-                player.heal(0.5)
+                r_xp = randint(10, 40) #xp gain from killing enemy
+                camera_group.xp_fill_width =  min(camera_group.xp_fill_width + r_xp, 200)
                 
             enemy.last_damage_time = current_time  # Update the last damage time
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 # Camera class to handle scrolling and background tiling
 class CameraGroup(pygame.sprite.Group):
@@ -161,6 +172,7 @@ class CameraGroup(pygame.sprite.Group):
 
         self.xp_fill_width = 0
         self.health_fill_width = 200
+        self.xp_target_width = 0
 
     def center_target_camera(self, target):
         self.offset.x = target.rect.centerx - self.half_w
@@ -185,20 +197,35 @@ class CameraGroup(pygame.sprite.Group):
         full_heart = pygame.image.load('Assets/Real_Heart.png').convert_alpha()
         half_heart = pygame.image.load('Assets/Real_Half_Heart.png').convert_alpha()
         empty_heart = pygame.image.load('Assets/Real_Empty_Heart.png').convert_alpha()
-
+        shield_image = pygame.image.load("Assets/shield_image.png").convert_alpha()
+        half_shield_image = pygame.image.load("Assets/half_shield_image.png").convert_alpha()
+        empty_shield = pygame.image.load("Assets/empty_shield.png").convert_alpha()
+        
         heart_w, heart_h = full_heart.get_size()
         x, y = 20, 20  # Position of health bar
 
-        for i in range(player.max_health):
+        for i in range(3):
             heart_pos = (x + i * heart_w, y)
-            
+
             # Determine which heart to draw
             if player.health >= i + 1:  # Full heart
                 screen.blit(full_heart, heart_pos)
-            elif player.health >= i + 0.5:  # Half heart
+            elif player.health > i and player.shield < 1:  # Half heart
                 screen.blit(half_heart, heart_pos)
             else:  # Empty heart
                 screen.blit(empty_heart, heart_pos)
+        
+        heart_pos = (x + 3 * heart_w, y)
+        if player.shield == 1:
+            screen.blit(shield_image, heart_pos)
+        elif player.shield == 0.5:
+            screen.blit(half_shield_image, heart_pos)
+        elif player.shield == 0:
+            screen.blit(empty_shield, heart_pos)
+        
+
+        
+                
 
     def draw_health_bar_enemy(self, screen, enemy):
         # Offset enemy position with the camera
@@ -223,10 +250,6 @@ class CameraGroup(pygame.sprite.Group):
         # Draw the health fill
         pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, health_fill_width, bar_height))
 
-
-        
-
-
     def draw_xp_bar(self, screen, player):
         x, y = 20, 60  # Position of XP bar
         bar_width = 200  # Width of the XP bar
@@ -237,21 +260,24 @@ class CameraGroup(pygame.sprite.Group):
         pygame.draw.rect(screen, (169, 169, 169), (x, y, bar_width, bar_height))
 
         # Calculate target XP width based on the player's XP
-        xp_target_width = (player.xp / player.max_xp) * bar_width
+        self.xp_target_width = (player.xp / player.max_xp) * bar_width
 
         
-        if self.xp_fill_width < xp_target_width:
+        if self.xp_fill_width < self.xp_target_width:
             # Increase the xp fill width 
             #increment = 1 
             #self.xp_fill_width += increment
 
             # Ensure the xp fill width doesn't exceed the target width
-            if self.xp_fill_width > xp_target_width:
-                self.xp_fill_width = xp_target_width
+            if self.xp_fill_width >= self.xp_target_width:
+                self.xp_fill_width = self.xp_target_width
+                LvlPopUp.open_pause_menu()
+                 
 
         pygame.draw.rect(screen, (255, 255, 0), (x, y, self.xp_fill_width, bar_height))
         
-    
+
+
     def custom_draw(self, player, enemy):
         self.center_target_camera(player)
 
@@ -273,6 +299,65 @@ class CameraGroup(pygame.sprite.Group):
         self.draw_xp_bar(self.display_surface, player)
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+class LvlPopUp:
+    def __init__(self):
+        super().__init__()
+        self.root = ''
+        
+    def resume_game(self):
+        global running
+        running = True  # Unpause the game
+        root.destroy()  # Close Tkinter window
+        camera_group.xp_fill_width = 0
+        
+    # Function to open pause menu
+    def open_pause_menu(self):
+        
+        random_name = random.choice(list(pwr_actions.keys()))
+        action = pwr_actions[random_name]
+        
+        global running, root
+        running = False  # Pause the game
+        root = tk.Tk()
+        root.title("Level up menu")
+        root.geometry("1000x600")
+
+        bg_image = PhotoImage(file="Assets/lvlupbg.png")
+
+        # Create a canvas and set the image
+        canvas = tk.Canvas(root, width=1000, height=600)
+        canvas.pack(fill="both", expand=True)
+        canvas.create_image(0, 0, image=bg_image, anchor="nw")
+
+        frame = tk.Frame(root, bg="#00afcc")
+        frame.place(relx=0.5, rely=0.5, anchor="center")  # Center frame
+
+        num_buttons = 3
+         
+        for i in range(num_buttons):
+            random_name = random.choice(list(pwr_actions.keys()))
+            action = pwr_actions[random_name]
+        
+            # Create a button with the dynamic command
+            button = tk.Button(frame, text=f"Increased, {random_name}!", command=action, bg="#00afcc", fg="black", width = 40, height = 4)
+            button.pack(pady=5)
+        
+        root.mainloop()  # Show the menu
+
+    def check_xp(self):
+        if self.xp_fill_width >= self.xp_target_width:  # XP bar is full
+            popup = LvlPopUp()  # Create an instance of LvlPopUp
+            popup.open_pause_menu()  # Show the Tkinter window
+
+
+        
+
+    
+# --------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+lvl_popup_instance = LvlPopUp()
 
 # Set up the clock and bounds
 clock = pygame.time.Clock()
@@ -303,17 +388,69 @@ for i in range(10): # how many spawn
         enemy_group.add(new_enemy)
 
 last_hit_c = 0
-hit_check = 3000 # time intervel to check if the player is bieng hit increse for more DPS
+hit_check = 2000 # time intervel to check if the player is bieng hit increse for more DPS
+
+def health_pwr():
+    player.heal(0.5)
+    lvl_popup_instance.resume_game()
+        
+def shield_pwr():
+    if player.shield != 1:
+        player.shield = 1
+    else:
+        player.heal(1)
+    lvl_popup_instance.resume_game()
+
+    
+def attack_pwr():
+    player.damage += 5
+    lvl_popup_instance.resume_game()
+
+def speed_pwr():
+    player.speed += 1
+    lvl_popup_instance.resume_game()
+
+def xp_pwr():
+    player.xp_gain_rate += 1.2
+    lvl_popup_instance.resume_game()
+
+    
+pwr_actions = {
+    'Shield':shield_pwr,
+    'Health':health_pwr,
+    'Attack':attack_pwr,
+    'Speed':speed_pwr,
+    'XP gain':xp_pwr
+}
+
+
+last_time = pygame.time.get_ticks()
+
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Main game loop
 while True:
+    print(player.shield, player.health, player.speed, player.damage)
     delta_time = clock.tick(60) / 1000.0  # Time in seconds since last frame
+    
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_t or camera_group.xp_fill_width >= 200:
+            popup = LvlPopUp()  # Create an instance of LvlPopUp
+            popup.open_pause_menu()  # Call the method to open the Tkinter window
+
+    xp_current = pygame.time.get_ticks()
+    if xp_current - last_time >= 1000:
+        camera_group.xp_fill_width += player.xp_gain_rate
+        last_time = xp_current
+    
+
+                
+        
     current_time = pygame.time.get_ticks()
     if current_time - last_hit_c > hit_check:
         if pygame.sprite.spritecollide(player, enemy_group, False):
@@ -339,9 +476,6 @@ while True:
         player.player_images.append(pygame.image.load('Assets/KnightS1.png').convert_alpha())
         for enemy in pygame.sprite.spritecollide(player, enemy_group, False):
             enemy.damage_enemy(10, current_time, player, camera_group)
-            print('Enemy health:',enemy.health)
-            print('Player health:',player.health)
-            print('Player xp :',player.xp)
     else:
         player.image = player.player_images[len(player.player_images) - 2]
 
@@ -354,8 +488,8 @@ while True:
     # Update and move enemies
     for enemy in enemy_group:
         enemy.move_towards_player(player, enemy_group)
-        print(enemy.health)
-
+        #print(enemy.health)
+    
     
     
     # Update player and draw everything
