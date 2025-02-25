@@ -14,6 +14,9 @@ import time
 pygame.init()
 screen = pygame.display.set_mode((1066, 600))  # Screen size
 
+
+    
+
 def main_game():
     
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -236,6 +239,7 @@ def main_game():
             self.min_xp = 10
             self.max_xp = 40
             self.dps = 1000
+            self.spawnrate = 10
             
         def move_towards_player(self, player, enemies):
             dirvect = pygame.math.Vector2(player.rect.center) - self.position
@@ -268,6 +272,7 @@ def main_game():
                     camera_group.xp_fill_width =  min(camera_group.xp_fill_width + r_xp, (camera_group.xp_target_width + lvl_popup_instance.xp_addition))
                     
                 enemy.last_damage_time = current_time  # Update the last damage time
+
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -341,13 +346,13 @@ def main_game():
             elif player.shield == 0:
                 screen.blit(empty_shield, heart_pos)
 
-        def extra_txt(self, screen):
-            self.xtrafont = pygame.font.SysFont('Impact', 20)
-            self.txt = 'M = Back to Menu'
-            self.text_surf = self.xtrafont.render(self.txt, True, (0, 0, 0)) 
-            self.text_rect = self.text_surf.get_rect(center=(80, 580))
-            screen.blit(self.text_surf, self.text_rect)
-            
+        def menue_key_text(self, screen):
+            self.xtrafontm = pygame.font.SysFont('Impact', 20)
+            self.txtm = 'M = Back to Menu'
+            self.textm_surf = self.xtrafontm.render(self.txtm, True, (0, 0, 0)) 
+            self.textm_rect = self.textm_surf.get_rect(center=(80, 580))
+            screen.blit(self.textm_surf, self.textm_rect)
+
         
         def draw_health_bar_enemy(self, screen, enemy):
             # Offset enemy position with the camera
@@ -419,7 +424,8 @@ def main_game():
 
             self.draw_health_bar(self.display_surface, player)
             self.draw_xp_bar(self.display_surface, player)
-            self.extra_txt(self.display_surface)
+            self.menue_key_text(self.display_surface)
+    
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -549,7 +555,7 @@ def main_game():
     spawns = 30000 # timer for spawning enemies
 
     for i in range(10): # how many spawn
-        if len(enemies) != 40: # limit to stop inf number of enemies spawning
+        if len(enemies) != 50: # limit to stop inf number of enemies spawning
             random_x = randint(0, 3000)
             random_y = randint(0, 3000)
             new_enemy = Enemy(random_x, random_y, enemy_group)
@@ -559,6 +565,21 @@ def main_game():
     hit_check = 2000 # time intervel to check if the player is bieng hit increse for more DPS
 
     despawn_arrow = True
+
+    start_time = pygame.time.get_ticks()
+
+    
+
+
+    def timer_txt(timer):
+        xtrafontt = pygame.font.SysFont('Impact', 20)
+        active_time = pygame.time.get_ticks() // 1000
+        txtt = str(timer + active_time)
+        textt_surf = xtrafontt.render(txtt, True, (0, 0, 0)) 
+        textt_rect = textt_surf.get_rect(center=(533, 40))
+        screen.blit(textt_surf, textt_rect)
+
+    
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------  
     
@@ -684,8 +705,13 @@ def main_game():
 
     # Main game loop
     game_run = True
+    spawnrate = 10
     
     while game_run:
+
+        
+
+        
         if player.health <= 0:
             game_over()
             
@@ -693,7 +719,8 @@ def main_game():
         if keys[pygame.K_g]:
             print(camera_group.xp_target_width + lvl_popup_instance.xp_addition, camera_group.xp_fill_width)
             print(player.shield, player.health, player.speed, player.damage, player.xp_gain_rate)
-            print( player.damage, enemy.dps, player.bow_picked, despawn_arrow)
+            print(player.damage, enemy.dps, player.bow_picked, despawn_arrow)
+            print(spawnrate)
 
             
         delta_time = clock.tick(60) / 1000.0  # Time in seconds since last frame
@@ -730,10 +757,14 @@ def main_game():
         if current - spawn > spawns:
             spawn = current
             # Spawn enemies if none exist
-            for i in range(10):
+            for i in range(spawnrate):
                 random_x = randint(1000, 3000)
                 random_y = randint(1000, 3000)
                 new_enemy = Enemy(random_x, random_y, enemy_group)
+
+        if pygame.time.get_ticks() - start_time >= 60000:
+            spawnrate += 10
+            start_time = pygame.time.get_ticks()
 
         
         
@@ -748,19 +779,19 @@ def main_game():
             if current_time - last_fire_time > fire_cooldown:
                 if player.up:
                     facing = 'up'
-                    offset = (0, -10) 
+                    offset = (0, -30) 
                     last_fire_time = current_time
                 elif player.down:
                     facing = 'down'
-                    offset = (0, 10) 
+                    offset = (0, 30) 
                     last_fire_time = current_time
                 elif player.left:
                     facing = 'left'
-                    offset = (-10, 0)
+                    offset = (-30, 0)
                     last_fire_time = current_time
                 elif player.right:
                     facing = 'right'
-                    offset = (10, 0)
+                    offset = (30, 0)
                     last_fire_time = current_time
 
                 if facing:
@@ -799,9 +830,10 @@ def main_game():
         # Update player and draw everything
         player.update()
         camera_group.custom_draw(player, enemy, arrow_group)
-        pygame.display.update()
         clock.tick(60)
-        
+        timer_txt(0)
+        pygame.display.update()
+    
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def tutorial():
@@ -819,6 +851,8 @@ def tutorial():
         screen.blit(text_surf, text_rect)
 
     while tutorial_run:
+
+        
         screen.blit(tutorial_img,(0,0))
 
         for label, button in buttons.items():
@@ -861,6 +895,7 @@ def game_over():
         screen.blit(text_surf, text_rect)
 
     while game_over:
+
         time.sleep(0.1)
         screen.blit(game_over_img,(0,0))
 
@@ -910,6 +945,7 @@ menu_run = True
 
 while menu_run:
 
+    
     screen.blit(bg_img,(0,0))
 
     for event in pygame.event.get():
@@ -940,6 +976,6 @@ while menu_run:
 
     pygame.display.flip()  # Update screen
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+    
 pygame.quit()
 sys.exit()
