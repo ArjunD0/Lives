@@ -12,6 +12,7 @@ import time
 
 # Initialize pygame
 pygame.init()
+pygame.mixer.init()
 screen = pygame.display.set_mode((1066, 600))  # Screen size
 
 
@@ -55,6 +56,10 @@ def main_game():
             self.left = False
             self.right = False
             self.bow_picked = False
+            self.has_piercing = False
+            self.hurt_wav = pygame.mixer.Sound("Sounds/player_hurt.wav")
+            self.currentsound = pygame.mixer.Sound("Sounds/sword_hit.wav")
+            
             
         def gain_xp(self, amount):
             self.xp = min(self.xp + amount, self.max_xp)
@@ -63,13 +68,20 @@ def main_game():
         def take_damage(self, amount):
             if current_time - player.last_damage_time >= 3000:  # 3.5 secs before attack again
                 if player.shield != 0:
-                    player.shield -= 0.5    
+                    enemy.attackwav.play()
+                    player.shield -= 0.5
+                    player.hurt_wav.play()
                     player.last_damage_time = current_time
                 else:
-                    player.health -= 0.5    
+                    enemy.attackwav.play()
+                    player.health -= 0.5
+                    player.hurt_wav.play()
                     player.last_damage_time = current_time
                 if self.health < 0:
+                    enemy.attackwav.play()
+                    player.hurt_wav.play()
                     self.health = 0 # Update the last damage time
+        
         
         def heal(self, amount):
             self.health += amount
@@ -227,7 +239,8 @@ def main_game():
     class Enemy(pygame.sprite.Sprite):
         def __init__(self, x, y, group):
             super().__init__(group)
-            self.image = pygame.image.load('Assets/enemy_1.png').convert_alpha()
+            self.image_array = ['Assets/enemy_1.png','Assets/enemy_2.png','Assets/enemy_3.png']
+            self.image = pygame.image.load(self.image_array[randint(0,2)]).convert_alpha()
             self.rect = self.image.get_rect(topleft=(x,y))
             self.position = pygame.math.Vector2(x, y)
             self.speed = random.uniform(0.5, 2.5)                         # Set initial speed
@@ -240,6 +253,8 @@ def main_game():
             self.max_xp = 40
             self.dps = 1000
             self.spawnrate = 10
+            self.hurtwav = pygame.mixer.Sound("Sounds/enemydie.wav")
+            self.attackwav = pygame.mixer.Sound("Sounds/enemyattack.wav")
             
         def move_towards_player(self, player, enemies):
             dirvect = pygame.math.Vector2(player.rect.center) - self.position
@@ -266,7 +281,9 @@ def main_game():
                 enemy.health -= player.damage
                 if enemy.health <= 0:
                     enemy.health = 0 # Prevent health from going below 0
+                    enemy.hurtwav.play()
                     enemy.kill()
+                    player.heal(0.25)
                     player.gain_xp(randint(50, 150))
                     r_xp = (randint(enemy.min_xp, enemy.max_xp)*  player.xp_gain_rate) #xp gain from killing enemy
                     camera_group.xp_fill_width =  min(camera_group.xp_fill_width + r_xp, (camera_group.xp_target_width + lvl_popup_instance.xp_addition))
@@ -434,15 +451,20 @@ def main_game():
             super().__init__()
             self.root = ''
             self.xp_addition = 0
+            self.levelupwav = pygame.mixer.Sound("Sounds/level_up.wav")
+            self.upgradewav = pygame.mixer.Sound("Sounds/Upgrade.wav")
             
         def resume_game(self):
             global running
             running = True  # Unpause the game
             root.destroy()  # Close Tkinter window
+            lvl_popup_instance.upgradewav.play()
             camera_group.xp_fill_width = 0
             
         # Function to open pause menu
         def open_pause_menu(self):
+
+            self.levelupwav.play()
             
             random_name = random.choice(list(pwr_actions.keys()))
             action = pwr_actions[random_name]
@@ -470,7 +492,7 @@ def main_game():
                 action = pwr_actions[random_name]
             
                 # Create a button with the dynamic command
-                button = tk.Button(frame, text=f"Increased, {random_name}!", command=action, bg="#00afcc", fg="black", width = 40, height = 4)
+                button = tk.Button(frame, text=f"{random_name}!", command=action, bg="#00afcc", fg="black", width = 40, height = 4)
                 button.pack(pady=5)
             
             root.mainloop()  # Show the menu
@@ -508,7 +530,7 @@ def main_game():
             self.speed = 3                        
             self.damage = damage
 
-            self.facing = facing
+            self.facing = facing # Determin what arrow image to load
 
         def move(self):
             if self.facing == 'up':
@@ -518,7 +540,7 @@ def main_game():
             elif self.facing == 'left':
                 self.rect.x -= self.speed
             elif self.facing == 'right':
-                self.rect.x += self.speed
+                self.rect.x += self.speed 
 
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -570,7 +592,7 @@ def main_game():
 
     
 
-
+    # Timer for top of screen
     def timer_txt(timer):
         xtrafontt = pygame.font.SysFont('Impact', 20)
         active_time = pygame.time.get_ticks() // 1000
@@ -583,9 +605,11 @@ def main_game():
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------------  
     
-# Power ups functions 
+# Power ups
+
     def health_pwr():
         player.heal(0.5)
+        lvl_popup_instance.upgradewav.play()
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -595,12 +619,14 @@ def main_game():
     def shield_pwr():
         if player.shield != 1:
             player.shield = 1
+            lvl_popup_instance.upgradewav.play()
             
             if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
                 
         else: 
             player.heal(1)
+            lvl_popup_instance.upgradewav.play()
             
             if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -610,6 +636,7 @@ def main_game():
         
     def attack_pwr():
         player.damage += 5
+        lvl_popup_instance.upgradewav.play()
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -618,6 +645,7 @@ def main_game():
 
     def speed_pwr():
         player.speed += 0.25
+        lvl_popup_instance.upgradewav.play()
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -627,19 +655,23 @@ def main_game():
     def xp_pwr():
         player.xp_gain_rate += 1.2
         player.xp_gain_rate = round( player.xp_gain_rate, 2)
+        lvl_popup_instance.upgradewav.play()
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
                 
         lvl_popup_instance.resume_game()
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------------------  
         
-    # weapons  
+    # Weapons  
 
     def sword():
         player.damage = 20
         enemy.dps = 1000
         player.bow_picked = False
         player.has_piercing = False
+        player.currentsound = pygame.mixer.Sound("Sounds/sword_hit.wav")
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -651,6 +683,7 @@ def main_game():
         enemy.dps = 100
         player.bow_picked = False
         player.has_piercing = False
+        player.currentsound = pygame.mixer.Sound("Sounds/sword_hit.wav")
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -662,6 +695,7 @@ def main_game():
         enemy.dps = 4000
         player.bow_picked = False
         player.has_piercing = False
+        player.currentsound = pygame.mixer.Sound("Sounds/sword_hit.wav")
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -670,9 +704,10 @@ def main_game():
         
 
     def bow():
-        player.damage = 20
-        enemy.dps = 1000
+        player.damage = 15
+        enemy.dps = 1500
         player.bow_picked = True
+        player.currentsound = pygame.mixer.Sound("Sounds/bow_shoot.wav")
         
         if (camera_group.xp_target_width + lvl_popup_instance.xp_addition) < 700:
                 lvl_popup_instance.xp_addition += 10
@@ -680,7 +715,10 @@ def main_game():
         lvl_popup_instance.resume_game()
 
     def pierce_arrow_pwr():
-        player.has_piercing = True
+        if not player.has_piercing:
+            player.has_piercing = True
+        else:
+            player.damage += 3
         lvl_popup_instance.resume_game()
         
             
@@ -688,15 +726,15 @@ def main_game():
 # Power ups dict
 
     pwr_actions = {
-        'Shield':shield_pwr,
-        'Health':health_pwr,
-        'Attack':attack_pwr,
-        'Speed':speed_pwr,
-        'Sword':sword,
-        'Knife':knife,
-        'Great Sword':great_sword,
-        'Bow':bow,
-        'Piercing Arrows':pierce_arrow_pwr
+        'Receive a Shield':shield_pwr,
+        'Heal 1/2 Heart':health_pwr,
+        'Increased Attack':attack_pwr,
+        'Increased Speed':speed_pwr,
+        'Choose Sword':sword,
+        'Choose Knife':knife,
+        'Choose Great Sword':great_sword,
+        'Choose Bow':bow,
+        'Receive Piercing Arrows':pierce_arrow_pwr
     }
 
 
@@ -705,14 +743,16 @@ def main_game():
 
     # Main game loop
     game_run = True
-    spawnrate = 10
+    spawnrate = 10  # inital spawnrate for enemies
+    start_sound = 0
+
+    music = pygame.mixer.music.load("Sounds/game_music.wav")
+    pygame.mixer.music.play(-1)
     
     while game_run:
 
         
-
-        
-        if player.health <= 0:
+        if player.health <= 0: # check for player death if so load game over screen
             game_over()
             
         keys = pygame.key.get_pressed()# Debug and testing key remove
@@ -732,6 +772,9 @@ def main_game():
                 sys.exit()
                 
             if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                click.play()
+                music = pygame.mixer.music.load("Sounds/menu_music.wav")
+                pygame.mixer.music.play(-1)
                 game_run = False
                 time.sleep(0.1)
                 
@@ -762,21 +805,32 @@ def main_game():
                 random_y = randint(1000, 3000)
                 new_enemy = Enemy(random_x, random_y, enemy_group)
 
-        if pygame.time.get_ticks() - start_time >= 60000:
+        if pygame.time.get_ticks() - start_time >= 60000: # How long untill new wave of enemies
             spawnrate += 10
             start_time = pygame.time.get_ticks()
+            print(spawnrate)
 
-        
-        
+       
+        if keys[pygame.K_SPACE] and player.bow_picked == False:
+            if pygame.time.get_ticks() - start_sound >= 500:  # 1-second cooldown
+            
+                player.currentsound.play()
+                start_sound = pygame.time.get_ticks()
+                
+                
+
         keys = pygame.key.get_pressed()
         if keys[pygame.K_SPACE]:
             for enemy in pygame.sprite.spritecollide(player, enemy_group, False):
                 enemy.damage_enemy(player.damage, current_time, player, camera_group)
+            
 
         # When the player presses space and the bow is picked
         if keys[pygame.K_SPACE] and player.bow_picked:
+            
             facing = None
             if current_time - last_fire_time > fire_cooldown:
+                player.currentsound.play()
                 if player.up:
                     facing = 'up'
                     offset = (0, -30) 
@@ -836,11 +890,14 @@ def main_game():
     
 # --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# Tutorial and tutorial methode
 def tutorial():
     time.sleep(0.1)
     tutorial_run = True
 
-    tutorial_img =  pygame.image.load('Assets/tutoiral.png').convert_alpha()
+    
+
+    tutorial_img =  pygame.image.load('Assets/tutoiral.png').convert_alpha() # tutorials image
     buttons = {"Back": pygame.Rect(380, 540, 300, 50)}
     b_colour ='#5a2d2c'
 
@@ -853,7 +910,7 @@ def tutorial():
     while tutorial_run:
 
         
-        screen.blit(tutorial_img,(0,0))
+        screen.blit(tutorial_img,(0,0)) # add the bg
 
         for label, button in buttons.items():
             draw_button(label, button)
@@ -866,13 +923,15 @@ def tutorial():
                 pygame.quit()
                 exit()
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN: # check when button is pressed
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 
                 for label, button in buttons.items():
                     if button.collidepoint(mouse_x, mouse_y):
                         if label == "Back":
+                            click.play()
                             tutorial_run = False
+                            time.sleep(0.1)
                             menu_run = True
                             return
                             
@@ -887,6 +946,8 @@ def game_over():
     game_over_img =  pygame.image.load('Assets/game_over.png').convert_alpha()
     buttons = {"Play": pygame.Rect(380, 300, 300, 50), "Quit": pygame.Rect(380, 400, 300, 50)}
     b_colour ='#605e04'
+    music = pygame.mixer.music.load("Sounds/game_over.wav")
+    pygame.mixer.music.play(-1)
 
     def draw_button(text, button):
         pygame.draw.rect(screen, b_colour , button)  # Draw the button
@@ -897,7 +958,7 @@ def game_over():
     while game_over:
 
         time.sleep(0.1)
-        screen.blit(game_over_img,(0,0))
+        screen.blit(game_over_img,(0,0)) # add the bg
 
         for label, button in buttons.items():
             draw_button(label, button)
@@ -910,15 +971,17 @@ def game_over():
                 pygame.quit()
                 exit()
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN: # check when button is pressed
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 
                 for label, button in buttons.items():
                     if button.collidepoint(mouse_x, mouse_y):
                         if label == "Play":
+                            click.play()
                             main_game()
                         
                         elif label == "Quit":
+                            click.play()
                             pygame.quit()
                             sys.exit()
                             
@@ -930,6 +993,8 @@ def game_over():
 bg_img =  pygame.image.load('Assets/menu_bg.png').convert_alpha()
 bg_img = pygame.transform.scale(bg_img, (1066, 600))
 
+click = pygame.mixer.Sound("Sounds/select.wav")
+
 font = pygame.font.SysFont('impact', 40)
 buttons = {"Play": pygame.Rect(380, 300, 300, 50), "Tutorial": pygame.Rect(380, 400, 300, 50), "Quit": pygame.Rect(380, 500, 300, 50)} # buttons dict
 b_colour ='#1E90FF'
@@ -940,13 +1005,16 @@ def draw_button(text, button):
     text_rect = text_surf.get_rect(center=button.center)
     screen.blit(text_surf, text_rect)
 
+music = pygame.mixer.music.load("Sounds/menu_music.wav")
+pygame.mixer.music.play(-1)
 
 menu_run = True
 
 while menu_run:
+    
 
     
-    screen.blit(bg_img,(0,0))
+    screen.blit(bg_img,(0,0)) # add the bg
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -964,12 +1032,15 @@ while menu_run:
             if button.collidepoint(mouse_x, mouse_y):
                 time.sleep(0.1)
                 if label == "Play":
+                    click.play()
                     main_game()
                     
                 elif label == "Tutorial":
+                    click.play()
                     tutorial()
                      
                 elif label == "Quit":
+                    click.play()
                     menu_run = False
                     
                     
